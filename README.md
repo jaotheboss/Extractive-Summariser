@@ -1,4 +1,7 @@
 # Extractive-Summariser
+
+![Extractive Summary](https://github.com/jaotheboss/Extractive-Summariser/blob/master/extractive_summary.png)
+
 This project aims to develop a script that could effectively summarise articles in the extractive sense
 
 ## Objective:
