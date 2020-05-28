@@ -5,6 +5,40 @@ This project aims to perform extractive summaries on articles
 import os
 os.chdir('/Users/jaoming/Documents/Active Projects/Text Summarisation')
 
+import requests                                         # to get html source code
+from bs4 import BeautifulSoup as bsoup                  # to parse the html source code
+from bs4.element import Tag                             # to separate link and text
+
+# Extract the HTML source code from the link
+def extract_html_code(link):
+       html_code = requests.get(link)
+       html_code = html_code.text
+       return html_code
+
+# Extract the story from the source code
+def extract_html_text(html_code):
+       soup = bsoup(html_code, features = 'html.parser')
+       text = [i.contents for i in soup.findAll('p') if len(i.attrs) == 0][:-1]
+       return text
+
+# Collating any links in the article and cleaning up the text
+def clean_html_text(text):
+       article_links = []
+       clean_text = ""
+
+       for sentence in text:
+              if len(sentence) == 1:
+                     clean_text += sentence[0] + " "
+              else:
+                     temp = ""
+                     for parts in sentence:
+                            if type(parts) == Tag:
+                                   temp += parts.contents[0] + " "
+                                   article_links.append(parts['href'])
+                            else:
+                                   temp += parts
+       return clean_text, article_links
+
 import numpy as np                                      # array manipulation
 import spacy                                            # nlp module
 from spacy.lang.en.stop_words import STOP_WORDS
@@ -19,10 +53,8 @@ nlp = spacy.load('en_core_web_sm')
 def set_custom_boundaries(doc):
        # adds support to parse quotes as sentences
        for token in doc[:-1]:
-              if token.text == "'":
+              if token.text == "-":
                      doc[token.i+1].is_sent_start = False
-              elif token.text == ".":
-                     doc[token.i+1].is_sent_start = True
        return doc
 
 custom_nlp = spacy.load('en_core_web_sm')
@@ -51,11 +83,11 @@ class ExtractSummary():
 
               Returns:      Cleaned individual sentences
               """
-              dirty_sentences = [i.strip() for i in doc.sents]
+              dirty_sentences = [i.text.strip() for i in doc.sents]
               clean_sentences = []
               for dirt in dirty_sentences:
                      # un-capitalise the words in the sentence and remove stop words
-                     clean = " ".join([i.lower_ for i in dirt if i not in STOP_WORDS])
+                     clean = " ".join([i.lower() for i in dirt if i not in STOP_WORDS])
                      
                      # removing anything that's not a word
                      clean = re.sub("[^a-zA-Z0-9-]", " ", clean).strip()
@@ -108,7 +140,7 @@ class ExtractSummary():
               Returns:      Extracted Summary (Top 5 sentences)
               """
               # Parsing the article into a NLP instance
-              doc = nlp(article) # choose which parser you want to use
+              doc = custom_nlp(article) # choose which parser you want to use
 
               # Extracting clean individual sentences
               sentences, original_sentences = self.extracting_sentences(doc)
@@ -124,16 +156,32 @@ class ExtractSummary():
               nx_graph = nx.from_numpy_array(sim_mat)
               scores = nx.pagerank(nx_graph)
 
-              # Extracting the sentence and scores of the Top 5
-              ranked_sentences = sorted([(scores[i], s) for i, s in enumerate(original_sentences)], reverse = True)
+              # Extracting the sentence and scores
+              ranked_sentences = sorted([(scores[i], i, s) for i, s in enumerate(original_sentences)], reverse = True)
 
               return ranked_sentences
 
-# Example texts
-text = """President Donald Trump has threatened to close down social-media platforms that he argues censor conservative voices after Twitter on Tuesday tagged some of his messages with a fact-check warning. 'Republicans feel that Social Media Platforms totally silence conservatives voices,' Trump tweeted Wednesday. 'We will strongly regulate, or close them down, before we can ever allow this to happen. We saw what they attempted to do, and failed, in 2016.' Twitter had long been criticized for allowing the president to spread conspiracy theories and smears against opponents despite its policies against the promotion of disinformation. It recently came under increasing calls for it to take action against Trump after he spent weeks promoting a baseless conspiracy theory alleging that the MSNBC cohost Joe Scarborough was involved in the death of a staffer, Lori Klausutis, while he was serving as a US congressman. Twitter has declined to take action against the president for the messages about Scarborough, but on Tuesday for the first time it put a fact-check tag on some of Trump’s tweets. The president wrote two tweets claiming 'There is NO WAY (ZERO!) that Mail-In Ballots will be anything less than substantially fraudulent.' Twitter tagged each of the two messages with a blue exclamation mark and warning message, linking to articles in The Washington Post, CNN, and other outlets that debunk the president’s assertion. Trump doubled down on his voter-fraud claims in a follow-up tweet Wednesday. 'We can’t let a more sophisticated version of that happen again,' Trump wrote. 'Just like we can’t let large scale Mail-In Ballots take root in our Country. It would be a free for all on cheating, forgery and the theft of Ballots. Whoever cheated the most would win. Likewise, Social Media. Clean up your act, NOW!!!!' Trump has long accused social-media companies of bias toward conservatives. In June 2019 he invited several far-right provocateurs and conspiracy theorists, some of whom had had hate speech removed by social-media platforms, to the White House for a social-media summit. He has also credited being able to communicate on Twitter as a key factor in his election to the White House, remarking that it allows him to communicate with voters directly, unfiltered by media organizations he accuses of partisan bias.
-"""
+# Main function
+def main():
+       link = input('Enter an article link: ')
+       
+       es = ExtractSummary()
 
-cat = """
-Domestic cats, no matter their breed, are all members of one species. Relationship with Humans. Felis catus has had a very long relationship with humans. Ancient Egyptians may have first domesticated cats as early as 4,000 years ago. Plentiful rodents probably drew wild felines to human communities. The cats' skill in killing them may have first earned the affectionate attention of humans. Early Egyptians worshipped a cat goddess and even mummified their beloved pets for their journey to the next world—accompanied by mummified mice! Cultures around the world later adopted cats as their own companions. Hunting Abilities. Like their wild relatives, domestic cats are natural hunters able to stalk prey and pounce with sharp claws and teeth. They are particularly effective at night, when their light-reflecting eyes allow them to see better than much of their prey. Cats also enjoy acute hearing. All cats are nimble and agile, and their long tails aid their outstanding balance. Communication. Cats communicate by marking trees, fence posts, or furniture with their claws or their waste. These scent posts are meant to inform others of a cat's home range. House cats employ a vocal repertoire that extends from a purr to a screech. Diet. Domestic cats remain largely carnivorous, and have evolved a simple gut appropriate for raw meat. They also retain the rough tongue that can help them clean every last morsel from an animal bone (and groom themselves). Their diets vary with the whims of humans, however, and can be supplemented by the cat's own hunting successes.
-"""
+       html_code = extract_html_code(link)
+       text = extract_html_text(html_code)
+       clean_text, article_links = clean_html_text(text)
 
+       ranked_sentences = es.summarise(clean_text)
+       summary_sentences = ranked_sentences[:len(ranked_sentences)//3]
+       summary_sentences.sort(key = lambda x: x[1])
+       summary = "Summary of the article:\n"
+       for i in summary_sentences:
+              summary += i[2] + " "
+       print(summary)
+
+       print("\nLinks that were in the article:")
+       for links in article_links:
+              print(links)
+
+if __name__ == '__main__':
+       main()
