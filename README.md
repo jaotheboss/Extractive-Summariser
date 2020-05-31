@@ -14,3 +14,5 @@ In summary, basically the algorithm considers each and every sentence in the art
 
 ## To-do List:
 - [x] Create a method such that we can simply input websites instead of a full text
+- [ ] Make the script available for more than 1 news site
+- [ ] Tweak the parameters to improve on the extractive summary
