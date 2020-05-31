@@ -13,4 +13,4 @@ This script takes a page out of Google's pagerank algorithm to solve for relevan
 In summary, basically the algorithm considers each and every sentence in the article and calculates how much a particular sentence has been referenced. If a sentence has been referred to (or as similar) many times, it is likely that it is an important sentence.
 
 ## To-do List:
-- [ ] Create a method such that we can simply input websites instead of a full text
+- [x] Create a method such that we can simply input websites instead of a full text
