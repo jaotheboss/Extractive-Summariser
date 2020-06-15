@@ -14,5 +14,11 @@ In summary, basically the algorithm considers each and every sentence in the art
 
 ## To-do List:
 - [x] Create a method such that we can simply input websites instead of a full text
-- [ ] Make the script available for more than 1 news site
-- [ ] Tweak the parameters to improve on the extractive summary
+- [ ] Make the script available for more than 1 news site (a html parser effort)
+- [x] Tweak the parameters to improve on the extractive summary
+
+# Updates:
+1. Implemented BERT architecture encoders, which is a transformer, that generates contextualised sentence vectors for the sentence ranking algorithm 
+2. Added in my own BERT sentence embedder API into the mix
+3. This allowed us to remove the GloVe embeddings, which took up a lot of space
+4. Added a fail-safe incase the 'request' module is not able to extract the html code
