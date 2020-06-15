@@ -4,7 +4,9 @@ This project aims to perform extractive summaries on articles
 
 import os
 os.chdir('/Users/jaoming/Documents/Active Projects/Text Summarisation')
+import SentenceEmbeddingBERT                            # embedding word sentences
 
+import urllib.request as url_request
 import requests                                         # to get html source code
 from bs4 import BeautifulSoup as bsoup                  # to parse the html source code
 from bs4.element import Tag                             # to separate link and text
@@ -49,7 +51,7 @@ from sklearn.metrics.pairwise import cosine_similarity  # similarity computation
 # Standard NLP parser
 nlp = spacy.load('en_core_web_sm')
 
-# Custom NLP parser (not used for this case)
+# Custom NLP parser
 def set_custom_boundaries(doc):
        # adds support to parse quotes as sentences
        for token in doc[:-1]:
@@ -61,14 +63,14 @@ custom_nlp = spacy.load('en_core_web_sm')
 custom_nlp.add_pipe(set_custom_boundaries, before = 'parser')
 
 # Extracting pre-trained word-vectors
-word_embeddings = {} # these are vectors that represent words
-g_file = open('glove.6B.100d.txt', encoding = 'utf-8')
-for line in g_file:
-       values = line.split()
-       word = values[0]
-       coefs = np.asarray(values[1:], dtype = 'float32')
-       word_embeddings[word] = coefs
-g_file.close()
+# word_embeddings = {} # these are vectors that represent words
+# g_file = open('glove.6B.100d.txt', encoding = 'utf-8')
+# for line in g_file:
+#        values = line.split()
+#        word = values[0]
+#        coefs = np.asarray(values[1:], dtype = 'float32')
+#        word_embeddings[word] = coefs
+# g_file.close()
 
 # Main Class
 class ExtractSummary():
@@ -96,7 +98,7 @@ class ExtractSummary():
                      clean_sentences.append(clean)
               return clean_sentences, dirty_sentences
 
-       def convert_to_sentence_vectors(self, sentences):
+       def convert_to_sentence_vectors(self, sentences, max_len = 100):
               """
               Function:     Converts sentences into a vector form by summing up the word vectors in that sentence and dividing it over the number of words in that sentence
 
@@ -108,10 +110,9 @@ class ExtractSummary():
               for sentence in sentences:
                      sent_len = len(sentence.split())
                      if sent_len != 0:
-                            vect = sum([word_embeddings.get(word, np.zeros((100, ))) for word in sentence.split()])
-                            vect = vect / (sent_len + 0.001)
+                            vect = sentence_vectorizer.embed_sentence(sentence, max_len)
                      else:
-                            vect = np.zeros((100, ))
+                            vect = np.zeros((768, ))
                      sentence_vectors.append(vect)
               return sentence_vectors
 
@@ -128,7 +129,7 @@ class ExtractSummary():
               for i in range(num_sentences):
                      for j in range(num_sentences):
                             if i != j:
-                                   similarity_matrix[i][j] = cosine_similarity(sent_vects[i].reshape(1, 100), sent_vects[j].reshape(1, 100))[0, 0]
+                                   similarity_matrix[i][j] = cosine_similarity(sent_vects[i].reshape(1, 768), sent_vects[j].reshape(1, 768))[0, 0]
               return similarity_matrix
 
        def summarise(self, article):
@@ -162,26 +163,37 @@ class ExtractSummary():
               return ranked_sentences
 
 # Main function
-def main():
-       link = input('Enter an article link: ')
-       
+def main(link):
        es = ExtractSummary()
-
-       html_code = extract_html_code(link)
+       try:
+              html_code = extract_html_code(link)
+       except:
+              fp = url_request.urlopen(link)
+              mybytes = fp.read()
+              html_code = mybytes.decode('utf8')
+              fp.close()
+              del mybytes
        text = extract_html_text(html_code)
        clean_text, article_links = clean_html_text(text)
 
        ranked_sentences = es.summarise(clean_text)
-       summary_sentences = ranked_sentences[:len(ranked_sentences)//3]
+       summary_sentences = ranked_sentences[:5] # len(ranked_sentences)//3]              # can tweak this for the length of the summary
        summary_sentences.sort(key = lambda x: x[1])
-       summary = "Summary of the article:\n"
+       summary = "<b>Summary of the article:</b>\n"
        for i in summary_sentences:
               summary += i[2] + " "
-       print(summary)
 
-       print("\nLinks that were in the article:")
+       full_length = len(clean_text)
+       summary_length = len(summary) - 30
+
+       summary += "\n\n<b>Links that were in the article:</b>"
        for links in article_links:
-              print(links)
+              summary += '\n' + links + '\n'
+
+       summary += "\n<b>Stats:</b>"
+       summary += "\nThis bot has churned out a <b>" + str(int(1000*summary_length/full_length)/10) + "%</b> summary of the article"
+       
+       return summary
 
 if __name__ == '__main__':
        main()
