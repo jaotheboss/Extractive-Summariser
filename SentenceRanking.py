@@ -41,12 +41,12 @@ def clean_html_text(text):
                                    temp += parts
        return clean_text, article_links
 
-import numpy as np                                      # array manipulation
-import spacy                                            # nlp module
+import numpy as np                                
+import spacy                                      
 from spacy.lang.en.stop_words import STOP_WORDS
-import re                                               # text cleaning
-import networkx as nx                                   # matrix manipulation
-from sklearn.metrics.pairwise import cosine_similarity  # similarity computation
+import re                                               
+import networkx as nx                                  
+from sklearn.metrics.pairwise import cosine_similarity 
 
 # Standard NLP parser
 nlp = spacy.load('en_core_web_sm')
@@ -78,34 +78,16 @@ class ExtractSummary():
        This class aims to create extractive summaries of articles
        """
        def extracting_sentences(self, doc):
-              """
-              Function:     Extracts the sentences from the document and cleans them up before returning them
-
-              Inputs:       Document
-
-              Returns:      Cleaned individual sentences
-              """
               dirty_sentences = [i.text.strip() for i in doc.sents]
               clean_sentences = []
               for dirt in dirty_sentences:
-                     # un-capitalise the words in the sentence and remove stop words
                      clean = " ".join([i.lower() for i in dirt if i not in STOP_WORDS])
-                     
-                     # removing anything that's not a word
                      clean = re.sub("[^a-zA-Z0-9-]", " ", clean).strip()
                      clean = re.sub("\s+", " ", clean)
-                     # clean = re.sub("\s-\s", "-", clean)
                      clean_sentences.append(clean)
               return clean_sentences, dirty_sentences
 
        def convert_to_sentence_vectors(self, sentences, max_len = 100):
-              """
-              Function:     Converts sentences into a vector form by summing up the word vectors in that sentence and dividing it over the number of words in that sentence
-
-              Inputs:       Sentences
-
-              Returns:      A list of sentence vectors
-              """
               sentence_vectors = []
               for sentence in sentences:
                      sent_len = len(sentence.split())
@@ -117,13 +99,6 @@ class ExtractSummary():
               return sentence_vectors
 
        def matrix_preparation(self, sent_vects, num_sentences):
-              """
-              Function:     Prepares the sentence ranking matrix for optimisation
-
-              Inputs:       Sentence vectors
-
-              Returns:      Matrix
-              """
               similarity_matrix = np.zeros([num_sentences, num_sentences])
 
               for i in range(num_sentences):
@@ -133,33 +108,14 @@ class ExtractSummary():
               return similarity_matrix
 
        def summarise(self, article):
-              """
-              Function:     Main function of the class that executes the summarising
-
-              Inputs:       The article in text form
-
-              Returns:      Extracted Summary (Top 5 sentences)
-              """
-              # Parsing the article into a NLP instance
-              doc = custom_nlp(article) # choose which parser you want to use
-
-              # Extracting clean individual sentences
+              doc = custom_nlp(article)
               sentences, original_sentences = self.extracting_sentences(doc)
               n_sentences = len(sentences)
-
-              # Converting sentences into vectors
               sentence_vectors = self.convert_to_sentence_vectors(sentences)
-
-              # Creating the similarity matrix for the sentences
               sim_mat = self.matrix_preparation(sentence_vectors, n_sentences)
-
-              # Applying the page-ranking algorithm to the matrix
               nx_graph = nx.from_numpy_array(sim_mat)
               scores = nx.pagerank(nx_graph)
-
-              # Extracting the sentence and scores
               ranked_sentences = sorted([(scores[i], i, s) for i, s in enumerate(original_sentences)], reverse = True)
-
               return ranked_sentences
 
 # Main function
@@ -177,7 +133,7 @@ def main(link):
        clean_text, article_links = clean_html_text(text)
 
        ranked_sentences = es.summarise(clean_text)
-       summary_sentences = ranked_sentences[:5] # len(ranked_sentences)//3]              # can tweak this for the length of the summary
+       summary_sentences = ranked_sentences[:5]
        summary_sentences.sort(key = lambda x: x[1])
        summary = "<b>Summary of the article:</b>\n"
        for i in summary_sentences:
